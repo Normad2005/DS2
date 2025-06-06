@@ -1,146 +1,119 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
+#include <string.h>
 
-typedef struct Node {
-    int z, x, y;
-    char val;
-    bool visited;
-    struct Node* neighbors[6];
-    struct Node* next;
-} Node;
+typedef enum {false, true} bool;
 
-Node* front = NULL;
-Node* rear = NULL;
+enum{down, up,
+	front, back,
+	left, right};
 
-void enqueue(Node* n) {
-    n->next = NULL;
-    if (rear) {
-        rear->next = n;
-    } else {
-        front = n;
-    }
-    rear = n;
+typedef struct Node{
+	int z, x, y;
+	char val;
+	int visited;
+	struct Node *neighbors[6];
+	struct Node *next;
+}Node;
+
+Node *origin, *head, *tail;
+
+Node *newNode(int z, int x, int y, char val){
+	Node *n = (Node *)malloc(sizeof(Node));
+	n->z = z;
+	n->x = x;
+	n->y = y;
+	n->val = val;
+	n->next = NULL;
+	n->visited = 0;
+	for(int i=0;i<6;i++)
+		n->neighbors[i] = 0;
+	return n;	 
+} 
+
+Node *find(int z, int x, int y){
+	Node *temp = origin;
+	while(y--) temp = temp->neighbors[right];
+	while(x--) temp = temp->neighbors[back];
+	while(z--) temp = temp->neighbors[up];
+	return temp;
 }
 
-Node* dequeue() {
-    if (!front) return NULL;
-    Node* temp = front;
-    front = front->next;
-    if (!front) rear = NULL;
-    return temp;
+void enqueue(Node *node){
+	if(tail) tail->next = node;
+	tail = node;
+	if(!head) head = tail;
 }
 
-bool isEmpty() {
-    return front == NULL;
+Node *dequeue(){
+	Node *temp = head;
+	head = head->next;
+	if(head == NULL) tail = NULL;
+	return temp;
 }
 
-int zdir[6] = {1, -1, 0, 0, 0, 0};
-int xdir[6] = {0, 0, 1, -1, 0, 0};
-int ydir[6] = {0, 0, 0, 0, 1, -1};
-Node* nodes[32][32][32];
+int isEmpty(){
+	return !head;
+}
 
 int main(){
-    FILE *fin = fopen("testcase3.txt", "r");
-    FILE *fout = fopen("output3.txt", "w");
-    int hei, row, col;
-
-    while(fscanf(fin, "%d %d %d", &hei, &row, &col)==3 && (hei||row||col)){
-        fgetc(fin);
-
-        Node* start = NULL;
-        Node* end = NULL;
-
-        for(int h=0;h<hei;h++){
-            for(int r=0;r<row;r++){
-                for(int c=0;c<col;c++){
-                    char ch;
-                    fscanf(fin, " %c", &ch); 
-                    Node* n = (Node*)malloc(sizeof(Node));
-                    n->z = h;
-                    n->x = r;
-                    n->y = c;
-                    n->val = ch;
-                    n->visited = false;
-                    for (int i = 0; i < 6; i++) n->neighbors[i] = NULL;
-                    n->next = NULL;
-                    nodes[h][r][c] = n;
-                    if(ch=='S') start = n;
-                    if(ch=='E') end = n;
-                }
-                fgetc(fin);
-            }
-            fgetc(fin);
-        }
-
-        for(int h=0;h<hei;h++){
-            for(int r=0;r<row;r++){
-                for(int c=0;c<col;c++){
-                    if(nodes[h][r][c]->val!='#'){
-                        for(int dir=0;dir<6;dir++){
-                            int nh = h+zdir[dir];
-                            int nr = r+xdir[dir];
-                            int nc = c+ydir[dir];
-                            if(nh>=0 && nh<hei && nr>=0 && nr<row && nc>=0 && nc<col) {
-                                if(nodes[nh][nr][nc]->val!='#') {
-                                    nodes[h][r][c]->neighbors[dir] = nodes[nh][nr][nc];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // BFS
-        int cnt = 0;
-        bool flag = false;
-        front = rear = NULL;
-        start->visited = true;
-        enqueue(start);
-        while(!isEmpty()){
-            int size = 0;
-            Node* ptr = front;
-            while(ptr){
-                size++;
-                ptr = ptr->next;
-            }
-
-            for(int i=0;i<size;i++){
-                Node* cur = dequeue();
-                if(cur==end) {
-                    flag = true;
-                    break;
-                }
-                for(int d=0;d<6;d++){
-                    Node* nb = cur->neighbors[d];
-                    if (nb && !nb->visited) {
-                        nb->visited = true;
-                        enqueue(nb);
-                    }
-                }
-            }
-
-            if(flag) break;
-            cnt++;
-        }
-
-        if(flag){
-            fprintf(fout, "Escaped in %d step(s).\n", cnt);
-        }
-        else{
-            fprintf(fout, "Trapped!\n");
-        }
-
-        for (int h=0; h<hei;h++){
-            for (int r=0;r<row;r++){
-                for (int c=0;c<col;c++){
-                    free(nodes[h][r][c]);
-                }
-            }
-        }
-    }
-    fclose(fin);
-    fclose(fout);
-    return 0;
+	FILE *fin = fopen("testcase69.txt", "r");
+	//FILE *fout = fopen("eeoo.txt", "w");
+	
+	int h, r, c;
+	char val;
+	Node *temp, *start, *exit, *adj;
+	while(fscanf(fin, "%d%d%d", &h, &r, &c) && (h||r||c)){
+		head = tail = origin = NULL;
+		for(int z=0;z<h;z++)
+		for(int x=0;x<r;x++)
+		for(int y=0;y<c;y++){
+			do val = fgetc(fin);
+			while(val != 'S' && val != 'E' && val != '#' && val != '.');
+			
+			temp = newNode(z, x, y, val);
+			
+			if(!(x||y||z)) origin = temp;
+			if(temp->val == 'S') start = temp;
+			else if(temp->val == 'E') exit = temp;
+			
+			if(z){
+				adj = find(z-1, x, y);
+				adj->neighbors[up] = temp;
+				temp->neighbors[down] = adj;
+			}
+			if(x){
+				adj = find(z, x-1, y);
+				adj->neighbors[back] = temp;
+				temp->neighbors[front] = adj;
+			}
+			if(y){
+				adj = find(z, x, y-1);
+				adj->neighbors[right] = temp;
+				temp->neighbors[left] = adj;
+			}
+		}
+		int found = 0;
+		start->visited = 1;
+		enqueue(start);
+		while(!isEmpty()){
+			temp = dequeue();
+			if(temp->val == 'E'){
+				printf("Escaped in %d step(s).\n", temp->visited-1);
+				found = 1;
+				break;
+			}
+			
+			for(int i=0;i<6;i++){
+				adj = temp->neighbors[i];
+				if(adj == NULL || adj->visited || adj->val == '#') continue;
+				adj->visited = temp->visited+1;
+				enqueue(adj);
+			}
+		}
+		
+		if(!found)
+			printf("Trapped!\n");
+	}
+	return 0;
 }
